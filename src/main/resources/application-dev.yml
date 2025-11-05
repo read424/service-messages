@@ -1,0 +1,120 @@
+quarkus:
+  application:
+    name: quarkus-message-service
+  http:
+    port: 8089
+  # Deshabilitar Dev Services para usar servicios locales
+  devservices:
+    enabled: false
+  # Consul config comentado temporalmente - verificar documentación para configuración correcta
+  # consul-config:
+  #   enabled: true
+  #   agent:
+  #     host-port: localhost:8500
+  #     register: true
+  #     service-name: ${quarkus.application.name}
+  #     service-port: ${quarkus.http.port}
+  #     service-host: localhost
+  #     health-check-interval: 10s
+  #     health-check-path: /q/health
+  smallrye-health:
+    ui:
+      enabled: true
+  datasource:
+    db-kind: postgresql
+    username: postgres
+    password: 12345
+    # URL JDBC para Flyway (migraciones)
+    jdbc:
+      url: jdbc:postgresql://127.0.0.1:5432/erp_tlm_2021
+    # URL Reactiva para runtime
+    reactive:
+      url: postgresql://127.0.0.1:5432/erp_tlm_2021
+  hibernate-orm:
+    database:
+      generation: none  # Deshabilitado - usamos Flyway
+    # Desactivar validación de schema temporalmente
+    validate-in-dev-mode: false
+  flyway:
+    migrate-at-start: true
+    baseline-on-migrate: true
+    schemas: inbox_messages
+    locations: db/migration
+    table: flyway_schema_history
+  swagger-ui:
+    always-include: true
+    path: /swagger-ui
+  # Redis Cache Configuration
+  redis:
+    hosts: redis://127.0.0.1:6379
+    timeout: 10s
+    # Pool de conexiones
+    max-pool-size: 20
+    max-pool-waiting: 24
+  cache:
+    redis:
+      # TTL por defecto para cache (30 minutos)
+      expire-after-write: 30m
+      # Prefijo para las keys
+      prefix: "msg-svc"
+  # Logging Configuration para ELK Stack
+  log:
+    console:
+      # Habilitar logging JSON en consola para Logstash
+      json: true
+      format: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{3.}] (%t) %s%e%n"
+    # Configurar niveles de log
+    level: INFO
+    category:
+      "org.walrex":
+        level: DEBUG
+      "io.quarkus":
+        level: INFO
+      "org.hibernate":
+        level: WARN
+    # Configurar archivos de log (opcional, para desarrollo local)
+    file:
+      enable: true
+      path: logs/application.log
+      rotation:
+        max-file-size: 10M
+        max-backup-index: 5
+        file-suffix: .yyyy-MM-dd
+      format: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{3.}] (%t) %s%e%n"
+kafka:
+  bootstrap:
+    servers: 127.0.0.1:9092
+mp:
+  messaging:
+    incoming:
+      orders:
+        connector: smallrye-kafka
+        topic: order-events
+        value:
+          deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+        schema:
+            registry:
+              url: http://127.0.0.1:8081
+        specific:
+          avro:
+            reader: true
+        auto:
+          offset:
+            reset: earliest
+        group:
+          id: order-service-group
+    outgoing:
+      notifications:
+        connector: smallrye-kafka
+        topic: notification-events
+        value:
+          serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+        schema:
+          registry:
+            url: http://127.0.0.1:8081
+        auto:
+          register:
+            schemas: true
+        use:
+          latest:
+            version: true

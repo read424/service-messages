@@ -1,0 +1,13 @@
+*.log
+*.md
+.git/
+.idea/
+.vscode/
+*.iml
+.DS_Store
+node_modules/
+.mvn/
+env.json
+template.yaml
+samconfig.toml
+README-SAM.md

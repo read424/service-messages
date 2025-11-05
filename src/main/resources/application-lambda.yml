@@ -1,0 +1,58 @@
+quarkus:
+  application:
+    name: quarkus-message-service
+  http:
+    port: 8080
+  consul-config:
+    enabled: false  # Consul no disponible en Lambda
+  smallrye-health:
+    ui:
+      enabled: true
+  datasource:
+    db-kind: postgresql
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    # URL JDBC para Flyway (migraciones manuales solamente)
+    jdbc:
+      url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:erp_tlm_2021}
+    # URL Reactiva para runtime
+    reactive:
+      url: postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:erp_tlm_2021}
+  hibernate-orm:
+    database:
+      generation: none
+  flyway:
+    migrate-at-start: false  # NUNCA ejecutar en Lambda
+    baseline-on-migrate: true
+    schemas: inbox_messages
+    locations: db/migration
+    table: flyway_schema_history
+  swagger-ui:
+    always-include: false  # Desactivar en producción
+    path: /swagger-ui
+  lambda:
+    handler: io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler
+kafka:
+  bootstrap:
+    servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+mp:
+  messaging:
+    connector:
+      smallrye-kafka:
+        apicurio:
+          registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
+    incoming:
+      orders:
+        connector: smallrye-kafka
+        topic: order-events
+        value:
+          deserializer: io.apicurio.registry.serde.avro.AvroKafkaDeserealizer
+        apicurio:
+          registry:
+            avro-datum-provider: io.apicurio.registry.serde.avro.ReflectAvroDatumProvider
+    outgoing:
+      notifications:
+        connector: smallrye-kafka
+        topic: notification-events
+        value:
+          serializer: io.apicurio.registry.serde.avro.AvroKafkaSerializer
