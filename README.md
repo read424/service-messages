@@ -63,7 +63,7 @@ If you want to learn more about building native executables, please consult <htt
 - Apache Kafka Streams ([guide](https://quarkus.io/guides/kafka-streams)): Implement stream processing applications based on Apache Kafka
 - SmallRye Health ([guide](https://quarkus.io/guides/smallrye-health)): Monitor service health
 - Reactive PostgreSQL client ([guide](https://quarkus.io/guides/reactive-sql-clients)): Connect to the PostgreSQL database using the reactive pattern
-- Apicurio Registry - Avro ([guide](https://quarkus.io/guides/kafka-schema-registry-avro)): Use Apicurio as Avro schema registry
+- Confluent Schema Registry - Avro ([guide](https://quarkus.io/guides/kafka-schema-registry-avro)): Use Confluent Schema Registry for Avro schema management
 
 ## Provided Code
 
