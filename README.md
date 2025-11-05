@@ -14,6 +14,13 @@ You can run your application in dev mode that enables live coding using:
 
 > **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
 
+## API Documentation
+
+The application includes OpenAPI/Swagger documentation. Once the application is running in dev mode, you can access:
+
+- **Swagger UI**: <http://localhost:8089/swagger-ui>
+- **OpenAPI Specification**: <http://localhost:8089/q/openapi>
+
 ## Packaging and running the application
 
 The application can be packaged using:
