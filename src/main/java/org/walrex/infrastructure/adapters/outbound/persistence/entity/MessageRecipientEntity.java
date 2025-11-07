@@ -1,6 +1,5 @@
 package org.walrex.infrastructure.adapters.outbound.persistence.entity;
 
-import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -15,7 +14,7 @@ import java.time.LocalDateTime;
     @Index(name = "idx_message_recipients_recipient_id", columnList = "recipient_id"),
     @Index(name = "idx_message_recipients_is_read", columnList = "is_read")
 })
-public class MessageRecipientEntity extends PanacheEntityBase {
+public class MessageRecipientEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,8 +25,12 @@ public class MessageRecipientEntity extends PanacheEntityBase {
     @JoinColumn(name = "message_id", nullable = false, foreignKey = @ForeignKey(name = "fk_message_recipients_message"))
     private MessageEntity message;
 
-    @Column(name = "recipient_id", nullable = false)
+    @Column(name = "recipient_id", nullable = false, insertable = false, updatable = false)
     private Integer recipientId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_id", referencedColumnName = "id_usuario")
+    private UsuarioEntity recipient;
 
     @Column(name = "is_read", length = 1, columnDefinition = "VARCHAR(1) DEFAULT 'N'")
     private String isRead;
@@ -101,6 +104,14 @@ public class MessageRecipientEntity extends PanacheEntityBase {
 
     public void setReadAt(LocalDateTime readAt) {
         this.readAt = readAt;
+    }
+
+    public UsuarioEntity getRecipient() {
+        return recipient;
+    }
+
+    public void setRecipient(UsuarioEntity recipient) {
+        this.recipient = recipient;
     }
 
     @Override

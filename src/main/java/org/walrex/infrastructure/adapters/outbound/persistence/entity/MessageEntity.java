@@ -1,6 +1,5 @@
 package org.walrex.infrastructure.adapters.outbound.persistence.entity;
 
-import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 
 import java.time.OffsetDateTime;
@@ -13,15 +12,19 @@ import java.util.List;
  */
 @Entity
 @Table(name = "messages", schema = "inbox_messages")
-public class MessageEntity extends PanacheEntityBase {
+public class MessageEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_message")
     private Long idMessage;
 
-    @Column(name = "sender_id", nullable = false)
+    @Column(name = "sender_id", nullable = false, insertable = false, updatable = false)
     private Integer senderId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_id", referencedColumnName = "id_usuario")
+    private UsuarioEntity sender;
 
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;
@@ -129,6 +132,14 @@ public class MessageEntity extends PanacheEntityBase {
 
     public void setAttachments(List<AttachmentEntity> attachments) {
         this.attachments = attachments;
+    }
+
+    public UsuarioEntity getSender() {
+        return sender;
+    }
+
+    public void setSender(UsuarioEntity sender) {
+        this.sender = sender;
     }
 
     @Override
