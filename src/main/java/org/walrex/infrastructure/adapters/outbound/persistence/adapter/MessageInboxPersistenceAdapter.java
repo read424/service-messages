@@ -9,8 +9,14 @@ import org.jboss.logging.Logger;
 import org.walrex.application.ports.output.InboxMessagePort;
 import org.walrex.domain.model.MessageInboxItem;
 import org.walrex.domain.model.PagedResult;
+import org.walrex.infrastructure.adapters.outbound.persistence.dto.MessageDetailsDTO;
+import org.walrex.infrastructure.adapters.outbound.persistence.entity.AttachmentEntity;
+import org.walrex.infrastructure.adapters.outbound.persistence.entity.MessageEntity;
 import org.walrex.infrastructure.adapters.outbound.persistence.entity.MessageRecipientEntity;
+import org.walrex.infrastructure.adapters.outbound.persistence.repository.AttachmentRepository;
 import org.walrex.infrastructure.adapters.outbound.persistence.repository.MessageRecipientRepository;
+import org.walrex.infrastructure.adapters.outbound.persistence.repository.MessageRepository;
+import org.walrex.infrastructure.adapters.outbound.persistence.mapper.MessageDetailsMapper;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -30,10 +36,17 @@ public class MessageInboxPersistenceAdapter implements InboxMessagePort {
     private static final Logger LOG = Logger.getLogger(MessageInboxPersistenceAdapter.class);
 
     private final MessageRecipientRepository messageRecipientRepository;
+    private final MessageRepository messageRepository;
+    private final AttachmentRepository attachmentRepository;
 
     @Inject
-    public MessageInboxPersistenceAdapter(MessageRecipientRepository messageRecipientRepository) {
+    public MessageInboxPersistenceAdapter(
+            MessageRecipientRepository messageRecipientRepository,
+            MessageRepository messageRepository,
+            AttachmentRepository attachmentRepository) {
         this.messageRecipientRepository = messageRecipientRepository;
+        this.messageRepository = messageRepository;
+        this.attachmentRepository = attachmentRepository;
     }
 
     /**
@@ -178,5 +191,30 @@ public class MessageInboxPersistenceAdapter implements InboxMessagePort {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
             return createdAt.format(formatter);
         }
+    }
+
+    /**
+     * Obtiene el detalle completo de un mensaje por su ID
+     *
+     * @param idMessage ID del mensaje a consultar
+     * @return Uni reactivo con el detalle completo del mensaje
+     */
+    @Override
+    public Uni<MessageDetailsDTO> getDetailMessageById(Integer idMessage) {
+        LOG.infof("[MessageInboxPersistenceAdapter] Consultando detalle del mensaje - idMessage: %d", idMessage);
+
+        Uni<MessageEntity> message = messageRepository.findByIdWithFullDetails(idMessage.longValue());
+
+        Uni<List<MessageRecipientEntity>> recipientsList = messageRecipientRepository.findByMessageIdWithRecipientDetails(idMessage.longValue());
+
+        Uni<List<AttachmentEntity>> attachmentFiles = attachmentRepository.findByMessageId(idMessage.longValue());
+
+
+
+        // TODO: Implementar la lógica completa para obtener el detalle del mensaje
+        // Por ahora retornamos un error de no implementado
+        return Uni.createFrom().failure(
+            new UnsupportedOperationException("getDetailMessageById not implemented yet")
+        );
     }
 }
