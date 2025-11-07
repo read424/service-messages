@@ -25,6 +25,18 @@ public class MessageRecipientRepository implements PanacheRepository<MessageReci
     }
 
     /**
+     * Buscar destinatarios de un mensaje con sus datos de usuario y empleado cargados
+     * Optimizado con JOIN FETCH para evitar N+1 queries
+     */
+    public Uni<List<MessageRecipientEntity>> findByMessageIdWithRecipientDetails(Long messageId) {
+        return find("SELECT mr FROM MessageRecipientEntity mr " +
+                    "LEFT JOIN FETCH mr.recipient u " +
+                    "LEFT JOIN FETCH u.empleado " +
+                    "WHERE mr.message.idMessage = ?1", messageId)
+                .list();
+    }
+
+    /**
      * Buscar todos los mensajes de un destinatario
      */
     public Uni<List<MessageRecipientEntity>> findByRecipientId(Integer recipientId) {

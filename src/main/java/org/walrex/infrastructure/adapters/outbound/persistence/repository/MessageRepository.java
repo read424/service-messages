@@ -44,6 +44,18 @@ public class MessageRepository implements PanacheRepository<MessageEntity> {
     }
 
     /**
+     * Buscar mensaje por ID con todas las relaciones incluyendo sender y empleado
+     * Optimizado para evitar el problema N+1 usando JOIN FETCH
+     */
+    public Uni<MessageEntity> findByIdWithFullDetails(Long id) {
+        return find("SELECT DISTINCT m FROM MessageEntity m " +
+                    "LEFT JOIN FETCH m.sender s " +
+                    "LEFT JOIN FETCH s.empleado " +
+                    "WHERE m.idMessage = ?1", id)
+                .firstResult();
+    }
+
+    /**
      * Buscar mensajes por remitente
      */
     public Uni<List<MessageEntity>> findBySenderId(Integer senderId) {
