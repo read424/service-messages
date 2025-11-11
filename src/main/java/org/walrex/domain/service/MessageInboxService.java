@@ -5,11 +5,13 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
+import org.walrex.application.ports.input.GetMessageByIdUseCase;
 import org.walrex.application.ports.input.GetMessagePaginationUseCase;
 import org.walrex.application.ports.output.InboxMessagePort;
 import org.walrex.domain.model.MessageInboxItem;
 import org.walrex.domain.model.PagedResult;
 import org.walrex.domain.model.Pageable;
+import org.walrex.domain.model.dto.MessageInfo;
 import org.walrex.infrastructure.adapters.outbound.cache.MessageCacheAdapter;
 
 import java.util.Optional;
@@ -22,7 +24,7 @@ import java.util.Optional;
  * Esta clase pertenece a la capa de dominio y contiene la lógica de negocio
  */
 @ApplicationScoped
-public class MessageInboxService implements GetMessagePaginationUseCase {
+public class MessageInboxService implements GetMessagePaginationUseCase, GetMessageByIdUseCase {
 
     private static final Logger LOG = Logger.getLogger(MessageInboxService.class);
 
@@ -105,5 +107,22 @@ public class MessageInboxService implements GetMessagePaginationUseCase {
                 .onFailure().invoke(throwable ->
                     LOG.errorf(throwable, "[MessageInboxService] Error al invalidar cache para usuario: %d", userId)
                 );
+    }
+
+    @Override
+    public Uni<MessageInfo> getMessageById(Integer idMessage, Integer idDestinatario) {
+        LOG.infof("[MessageInboxService] Obteniendo mensaje por ID - idMessage: %d, idDestinatario: %d", idMessage, idDestinatario);
+
+        return inboxMessagePort.getDetailMessageById(idMessage, idDestinatario)
+            .map(messageDetailsDTO -> {
+                LOG.debugf("[MessageInboxService] Mapeando MessageDetailsDTO a MessageInfo - idMessage: %d", idMessage);
+                return org.walrex.domain.model.mapper.MessageInfoMapper.toMessageInfo(messageDetailsDTO);
+            })
+            .onItem().invoke(messageInfo ->
+                LOG.infof("[MessageInboxService] Mensaje obtenido exitosamente - idMessage: %d", idMessage)
+            )
+            .onFailure().invoke(throwable ->
+                LOG.errorf(throwable, "[MessageInboxService] Error al obtener mensaje - idMessage: %d", idMessage)
+            );
     }
 }
