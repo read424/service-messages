@@ -44,13 +44,28 @@ public class MessageRepository implements PanacheRepository<MessageEntity> {
     }
 
     /**
-     * Buscar mensaje por ID con todas las relaciones incluyendo sender y empleado
-     * Optimizado para evitar el problema N+1 usando JOIN FETCH
+     * Buscar mensaje por ID con sender, empleado y recipients
+     * No incluye attachments para evitar el error "cannot simultaneously fetch multiple bags"
+     * Los attachments deben cargarse por separado
      */
     public Uni<MessageEntity> findByIdWithFullDetails(Long id) {
         return find("SELECT DISTINCT m FROM MessageEntity m " +
                     "LEFT JOIN FETCH m.sender s " +
                     "LEFT JOIN FETCH s.empleado " +
+                    "LEFT JOIN FETCH m.recipients r " +
+                    "LEFT JOIN FETCH r.recipient ru " +
+                    "LEFT JOIN FETCH ru.empleado " +
+                    "WHERE m.idMessage = ?1", id)
+                .firstResult();
+    }
+
+    /**
+     * Buscar mensaje por ID con attachments solamente
+     * Se usa en combinación con findByIdWithFullDetails para evitar multiple bags
+     */
+    public Uni<MessageEntity> findByIdWithAttachments(Long id) {
+        return find("SELECT m FROM MessageEntity m " +
+                    "LEFT JOIN FETCH m.attachments " +
                     "WHERE m.idMessage = ?1", id)
                 .firstResult();
     }
