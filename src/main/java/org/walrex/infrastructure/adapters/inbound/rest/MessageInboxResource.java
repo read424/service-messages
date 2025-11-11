@@ -15,10 +15,14 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
+import org.walrex.application.ports.input.GetMessageByIdUseCase;
 import org.walrex.application.ports.input.GetMessagePaginationUseCase;
 import org.walrex.domain.model.dto.MessageInboxItemDTO;
+import org.walrex.domain.model.dto.MessageInfo;
 import org.walrex.infrastructure.adapters.inbound.rest.dto.PagedResponse;
 import org.walrex.infrastructure.adapters.inbound.rest.response.MessageDetailResponse;
+import org.walrex.infrastructure.adapters.inbound.rest.response.SenderItem;
+import org.walrex.infrastructure.adapters.outbound.persistence.exception.MessageNotFoundException;
 
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -37,6 +41,9 @@ public class MessageInboxResource {
 
     @Inject
     GetMessagePaginationUseCase getMessagePaginationUseCase;
+
+    @Inject
+    GetMessageByIdUseCase getMessageByIdUseCase;
 
     /**
      * Obtiene los mensajes del inbox del usuario
@@ -264,15 +271,75 @@ public class MessageInboxResource {
 
         LOG.infof("[MessageInboxResource] ✅ Validación exitosa - userId: %d, idMessage: %d", userIdInt, idMessage);
 
-        // TODO: Implementar llamada al caso de uso para obtener el detalle del mensaje
-        // Por ahora retornamos un mock para probar la estructura
-        LOG.warn("[MessageInboxResource] ⚠️  Retornando respuesta mock - Implementación pendiente");
+        // 4. Llamar al caso de uso para obtener el detalle del mensaje
+        LOG.debugf("[MessageInboxResource] Delegando a GetMessageByIdUseCase - userId: %d, idMessage: %d", userIdInt, idMessage);
 
-        return Uni.createFrom().item(
-            Response.status(Response.Status.NOT_IMPLEMENTED)
-                .entity(new ErrorResponse("Message detail endpoint not implemented yet"))
-                .build()
-        );
+        return getMessageByIdUseCase.getMessageById(idMessage, userIdInt)
+            .map(messageInfo -> {
+                LOG.debugf("[MessageInboxResource] Respuesta recibida del caso de uso - idMessage: %d", idMessage);
+
+                // Mapear MessageInfo (dominio) a MessageDetailResponse (REST)
+                MessageDetailResponse response = toMessageDetailResponse(messageInfo);
+
+                LOG.infof("[MessageInboxResource] ⬆️  RESPONSE 200 OK - idMessage: %d", idMessage);
+                return Response.ok(response).build();
+            })
+            .onFailure().recoverWithItem(throwable -> {
+                LOG.errorf(throwable, "[MessageInboxResource] ❌ ERROR - Error al obtener mensaje - idMessage: %d", idMessage);
+
+                // Si el error es MessageNotFoundException, retornar 404
+                if (throwable instanceof MessageNotFoundException) {
+                    MessageNotFoundException notFoundEx = (MessageNotFoundException) throwable;
+                    LOG.warnf("[MessageInboxResource] Mensaje no encontrado - idMessage: %d", notFoundEx.getMessageId());
+                    return Response.status(Response.Status.NOT_FOUND)
+                        .entity(new ErrorResponse("Message not found with id: " + notFoundEx.getMessageId()))
+                        .build();
+                }
+
+                // Para otros errores, retornar 500
+                return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(new ErrorResponse("Error fetching message: " + throwable.getMessage()))
+                    .build();
+            });
+    }
+
+    /**
+     * Mapea MessageInfo (dominio) a MessageDetailResponse (REST)
+     *
+     * @param messageInfo DTO de dominio
+     * @return DTO de respuesta REST
+     */
+    private MessageDetailResponse toMessageDetailResponse(MessageInfo messageInfo) {
+        if (messageInfo == null) {
+            return null;
+        }
+
+        MessageDetailResponse response = new MessageDetailResponse();
+
+        // Mapear campos básicos
+        response.setIdMessage(messageInfo.getIdMessage());
+        response.setAsunto(messageInfo.getAsunto());
+        response.setHtmlcontent(messageInfo.getHtmlcontent());
+
+        // Mapear sender
+        if (messageInfo.getSenderUser() != null) {
+            SenderItem senderItem = new SenderItem();
+            senderItem.setApenomPersonal(messageInfo.getSenderUser().getApenomPersonal());
+            senderItem.setIdEmpleado(messageInfo.getSenderUser().getIdEmpleado());
+            senderItem.setIdUsuario(messageInfo.getSenderUser().getIdUsuario());
+            senderItem.setNoUsuario(messageInfo.getSenderUser().getNoUsuario());
+            response.setSenderUser(senderItem);
+        }
+
+        // Mapear attachments (solo las rutas/URLs)
+        if (messageInfo.getAttachments() != null) {
+            var attachmentUrls = messageInfo.getAttachments().stream()
+                .map(attachment -> attachment.getFilePath())
+                .collect(Collectors.toList());
+            response.setAttachment(attachmentUrls);
+        }
+
+        return response;
     }
 
     /**
