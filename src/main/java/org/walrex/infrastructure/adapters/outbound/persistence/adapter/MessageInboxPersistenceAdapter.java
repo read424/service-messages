@@ -1,7 +1,6 @@
 package org.walrex.infrastructure.adapters.outbound.persistence.adapter;
 
 import io.quarkus.panache.common.Page;
-import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
