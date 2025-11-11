@@ -1,7 +1,6 @@
 package org.walrex.infrastructure.adapters.outbound.persistence.adapter;
 
 import io.quarkus.panache.common.Page;
-import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -9,8 +8,20 @@ import org.jboss.logging.Logger;
 import org.walrex.application.ports.output.InboxMessagePort;
 import org.walrex.domain.model.MessageInboxItem;
 import org.walrex.domain.model.PagedResult;
+import org.walrex.infrastructure.adapters.outbound.persistence.dto.AttachmentInfoDTO;
+import org.walrex.infrastructure.adapters.outbound.persistence.dto.MessageDetailsDTO;
+import org.walrex.infrastructure.adapters.outbound.persistence.dto.ReceiverInfoDTO;
+import org.walrex.infrastructure.adapters.outbound.persistence.dto.RemitentInfoDTO;
+import org.walrex.infrastructure.adapters.outbound.persistence.entity.AttachmentEntity;
+import org.walrex.infrastructure.adapters.outbound.persistence.entity.EmpleadoEntity;
+import org.walrex.infrastructure.adapters.outbound.persistence.entity.MessageEntity;
 import org.walrex.infrastructure.adapters.outbound.persistence.entity.MessageRecipientEntity;
+import org.walrex.infrastructure.adapters.outbound.persistence.entity.UsuarioEntity;
+import org.walrex.infrastructure.adapters.outbound.persistence.repository.AttachmentRepository;
 import org.walrex.infrastructure.adapters.outbound.persistence.repository.MessageRecipientRepository;
+import org.walrex.infrastructure.adapters.outbound.persistence.repository.MessageRepository;
+import org.walrex.infrastructure.adapters.outbound.persistence.mapper.MessageDetailsMapper;
+import org.walrex.infrastructure.adapters.outbound.persistence.exception.MessageNotFoundException;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -30,10 +41,17 @@ public class MessageInboxPersistenceAdapter implements InboxMessagePort {
     private static final Logger LOG = Logger.getLogger(MessageInboxPersistenceAdapter.class);
 
     private final MessageRecipientRepository messageRecipientRepository;
+    private final MessageRepository messageRepository;
+    private final AttachmentRepository attachmentRepository;
 
     @Inject
-    public MessageInboxPersistenceAdapter(MessageRecipientRepository messageRecipientRepository) {
+    public MessageInboxPersistenceAdapter(
+            MessageRecipientRepository messageRecipientRepository,
+            MessageRepository messageRepository,
+            AttachmentRepository attachmentRepository) {
         this.messageRecipientRepository = messageRecipientRepository;
+        this.messageRepository = messageRepository;
+        this.attachmentRepository = attachmentRepository;
     }
 
     /**
@@ -178,5 +196,126 @@ public class MessageInboxPersistenceAdapter implements InboxMessagePort {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
             return createdAt.format(formatter);
         }
+    }
+
+    /**
+     * Obtiene el detalle completo de un mensaje por su ID
+     *
+     * @param idMessage ID del mensaje a consultar
+     * @return Uni reactivo con el detalle completo del mensaje
+     */
+    @Override
+    public Uni<MessageDetailsDTO> getDetailMessageById(Integer idMessage, Integer idDestinatario) {
+        LOG.infof("[MessageInboxPersistenceAdapter] Consultando detalle del mensaje - idMessage: %d", idMessage);
+
+        // Primera consulta: cargar mensaje con recipients (y sus relaciones)
+        return messageRepository.findByIdWithFullDetails(idMessage.longValue())
+            .onItem().ifNull().failWith(() -> {
+                LOG.errorf("[MessageInboxPersistenceAdapter] Mensaje no encontrado - idMessage: %d", idMessage);
+                return new MessageNotFoundException(idMessage);
+            })
+            .flatMap(msg -> {
+                int recipientsCount = msg.getRecipients() != null ? msg.getRecipients().size() : 0;
+                LOG.infof("[MessageInboxPersistenceAdapter] Mensaje encontrado - idMessage: %d, recipients: %d",
+                    idMessage, recipientsCount);
+
+                // Segunda consulta (secuencial): cargar attachments
+                return messageRepository.findByIdWithAttachments(idMessage.longValue())
+                    .onItem().ifNull().continueWith(msg) // Si no hay attachments, continuar con el mensaje original
+                    .map(msgWithAttachments -> {
+                        // Combinar los datos de ambas consultas
+                        List<MessageRecipientEntity> recipientsList = msg.getRecipients();
+                        List<AttachmentEntity> attachmentFiles = msgWithAttachments.getAttachments();
+
+                MessageDetailsDTO messageDetailsDTO = new MessageDetailsDTO();
+
+                messageDetailsDTO.setId(msg.getIdMessage().intValue());
+
+                if (msg.getSender() != null) {
+                    RemitentInfoDTO remitente = new RemitentInfoDTO();
+                    UsuarioEntity sender = msg.getSender();
+
+                    remitente.setIdUser(sender.getId().intValue());
+                    remitente.setUsuario(sender.getNameUser());
+
+                    // Si tiene empleado asociado, obtener nombres y apellidos
+                    if (sender.getEmpleado() != null) {
+                        EmpleadoEntity empleado = sender.getEmpleado();
+                        remitente.setIdEmpleado(empleado.getId().intValue());
+                        remitente.setNombres(empleado.getNombres());
+                        remitente.setApellidos(empleado.getPrimerApellido() + " " + empleado.getSegundoApellido());
+                        remitente.setEmail(empleado.getEmail());
+                    }
+
+                    messageDetailsDTO.setRemitente(remitente);
+                }
+                messageDetailsDTO.setContent(msg.getContent());
+                if (msg.getCreateAt() != null) {
+                    messageDetailsDTO.setCreateAt(msg.getCreateAt().toLocalDate());
+                }
+                messageDetailsDTO.setSubject(msg.getAsunto());
+
+                if (recipientsList != null && !recipientsList.isEmpty()) {
+                    Integer senderId = msg.getSender() != null ? msg.getSender().getId().intValue() : null;
+                    List<ReceiverInfoDTO> receivers = new java.util.ArrayList<>();
+
+                    for (MessageRecipientEntity recipientEntity : recipientsList) {
+                        Integer recipientId = recipientEntity.getRecipientId();
+
+                        if (recipientId.equals(idDestinatario)) {
+                            messageDetailsDTO.setIsRead(recipientEntity.getIsRead());
+
+                            // Convertir LocalDateTime a LocalDate
+                            if (recipientEntity.getReadAt() != null) {
+                                messageDetailsDTO.setReadAt(recipientEntity.getReadAt().toLocalDate());
+                            }
+                        }
+                        else if (senderId == null || !recipientId.equals(senderId)) {
+                            ReceiverInfoDTO receiver = new ReceiverInfoDTO();
+                            UsuarioEntity recipientUser = recipientEntity.getRecipient();
+
+                            if (recipientUser != null) {
+                                receiver.setId(recipientUser.getId().intValue());
+                                receiver.setUsername(recipientUser.getNameUser());
+
+                                // Si tiene empleado asociado, obtener nombres y apellidos
+                                if (recipientUser.getEmpleado() != null) {
+                                    EmpleadoEntity empleado = recipientUser.getEmpleado();
+                                    receiver.setNombres(empleado.getNombres());
+                                    receiver.setApellidos(empleado.getPrimerApellido() + " " + empleado.getSegundoApellido());
+                                }
+                            }
+
+                            receivers.add(receiver);
+                        }
+                    }
+
+                    messageDetailsDTO.setReceivers(receivers);
+                }
+
+                if (attachmentFiles != null && !attachmentFiles.isEmpty()) {
+                    List<AttachmentInfoDTO> attachments = attachmentFiles.stream()
+                        .map(attachmentEntity -> {
+                            AttachmentInfoDTO attachment = new AttachmentInfoDTO();
+                            attachment.setId(attachmentEntity.getId());
+                            attachment.setFilePath(attachmentEntity.getFilePath());
+                            attachment.setFileName(attachmentEntity.getFileName());
+                            attachment.setFileType(attachmentEntity.getFileType());
+
+                            // Convertir OffsetDateTime a LocalDate
+                            if (attachmentEntity.getUploadedAt() != null) {
+                                attachment.setUploadedAt(attachmentEntity.getUploadedAt().toLocalDate());
+                            }
+
+                            return attachment;
+                        })
+                        .toList();
+
+                    messageDetailsDTO.setAttachments(attachments);
+                }
+
+                        return messageDetailsDTO;
+                    });
+            });
     }
 }

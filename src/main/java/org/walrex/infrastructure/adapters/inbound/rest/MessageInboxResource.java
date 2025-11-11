@@ -15,9 +15,14 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
+import org.walrex.application.ports.input.GetMessageByIdUseCase;
 import org.walrex.application.ports.input.GetMessagePaginationUseCase;
 import org.walrex.domain.model.dto.MessageInboxItemDTO;
+import org.walrex.domain.model.dto.MessageInfo;
 import org.walrex.infrastructure.adapters.inbound.rest.dto.PagedResponse;
+import org.walrex.infrastructure.adapters.inbound.rest.response.MessageDetailResponse;
+import org.walrex.infrastructure.adapters.inbound.rest.response.SenderItem;
+import org.walrex.infrastructure.adapters.outbound.persistence.exception.MessageNotFoundException;
 
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -36,6 +41,9 @@ public class MessageInboxResource {
 
     @Inject
     GetMessagePaginationUseCase getMessagePaginationUseCase;
+
+    @Inject
+    GetMessageByIdUseCase getMessageByIdUseCase;
 
     /**
      * Obtiene los mensajes del inbox del usuario
@@ -177,6 +185,161 @@ public class MessageInboxResource {
                     .entity(new ErrorResponse("Error fetching messages: " + throwable.getMessage()))
                     .build();
             });
+    }
+
+    /**
+     * Obtiene el detalle de un mensaje específico
+     *
+     * @param userId ID del usuario desde el header X-User-Id
+     * @param idMessage ID del mensaje a consultar
+     * @return Detalle completo del mensaje
+     */
+    @GET
+    @Path("/{id_message}")
+    @Operation(
+        summary = "Obtener detalle de un mensaje",
+        description = "Retorna el detalle completo de un mensaje específico. El ID del usuario se obtiene del header X-User-Id."
+    )
+    @APIResponses(
+        value = {
+            @APIResponse(
+                responseCode = "200",
+                description = "Mensaje obtenido exitosamente",
+                content = @Content(
+                    mediaType = MediaType.APPLICATION_JSON,
+                    schema = @Schema(implementation = MessageDetailResponse.class)
+                )
+            ),
+            @APIResponse(
+                responseCode = "400",
+                description = "Parámetros inválidos (user ID ausente o formato incorrecto)"
+            ),
+            @APIResponse(
+                responseCode = "404",
+                description = "Mensaje no encontrado"
+            ),
+            @APIResponse(
+                responseCode = "500",
+                description = "Error interno del servidor"
+            )
+        }
+    )
+    @WithSession
+    public Uni<Response> getMessageById(
+        @Parameter(description = "ID del usuario (enviado por el API Gateway)", required = true)
+        @HeaderParam("X-User-Id")
+        String userId,
+
+        @Parameter(description = "ID del mensaje", required = true, example = "12345")
+        @PathParam("id_message")
+        Integer idMessage
+    ) {
+        LOG.infof("[MessageInboxResource] ⬇️  REQUEST - GET /api/message-inbox/%d - userId: %s", idMessage, userId);
+
+        // 1. Validar que el userId esté presente en el header
+        if (userId == null || userId.trim().isEmpty()) {
+            LOG.error("[MessageInboxResource] ❌ Validación fallida - Header X-User-Id ausente");
+            return Uni.createFrom().item(
+                Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Missing X-User-Id header"))
+                    .build()
+            );
+        }
+
+        // 2. Convertir userId de String a Integer
+        Integer userIdInt;
+        try {
+            userIdInt = Integer.parseInt(userId);
+        } catch (NumberFormatException e) {
+            LOG.errorf("[MessageInboxResource] ❌ Validación fallida - Formato de userId inválido: %s", userId);
+            return Uni.createFrom().item(
+                Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Invalid user ID format"))
+                    .build()
+            );
+        }
+
+        // 3. Validar que el idMessage no sea null
+        if (idMessage == null) {
+            LOG.error("[MessageInboxResource] ❌ Validación fallida - ID de mensaje ausente");
+            return Uni.createFrom().item(
+                Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Missing message ID"))
+                    .build()
+            );
+        }
+
+        LOG.infof("[MessageInboxResource] ✅ Validación exitosa - userId: %d, idMessage: %d", userIdInt, idMessage);
+
+        // 4. Llamar al caso de uso para obtener el detalle del mensaje
+        LOG.debugf("[MessageInboxResource] Delegando a GetMessageByIdUseCase - userId: %d, idMessage: %d", userIdInt, idMessage);
+
+        return getMessageByIdUseCase.getMessageById(idMessage, userIdInt)
+            .map(messageInfo -> {
+                LOG.debugf("[MessageInboxResource] Respuesta recibida del caso de uso - idMessage: %d", idMessage);
+
+                // Mapear MessageInfo (dominio) a MessageDetailResponse (REST)
+                MessageDetailResponse response = toMessageDetailResponse(messageInfo);
+
+                LOG.infof("[MessageInboxResource] ⬆️  RESPONSE 200 OK - idMessage: %d", idMessage);
+                return Response.ok(response).build();
+            })
+            .onFailure().recoverWithItem(throwable -> {
+                LOG.errorf(throwable, "[MessageInboxResource] ❌ ERROR - Error al obtener mensaje - idMessage: %d", idMessage);
+
+                // Si el error es MessageNotFoundException, retornar 404
+                if (throwable instanceof MessageNotFoundException) {
+                    MessageNotFoundException notFoundEx = (MessageNotFoundException) throwable;
+                    LOG.warnf("[MessageInboxResource] Mensaje no encontrado - idMessage: %d", notFoundEx.getMessageId());
+                    return Response.status(Response.Status.NOT_FOUND)
+                        .entity(new ErrorResponse("Message not found with id: " + notFoundEx.getMessageId()))
+                        .build();
+                }
+
+                // Para otros errores, retornar 500
+                return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(new ErrorResponse("Error fetching message: " + throwable.getMessage()))
+                    .build();
+            });
+    }
+
+    /**
+     * Mapea MessageInfo (dominio) a MessageDetailResponse (REST)
+     *
+     * @param messageInfo DTO de dominio
+     * @return DTO de respuesta REST
+     */
+    private MessageDetailResponse toMessageDetailResponse(MessageInfo messageInfo) {
+        if (messageInfo == null) {
+            return null;
+        }
+
+        MessageDetailResponse response = new MessageDetailResponse();
+
+        // Mapear campos básicos
+        response.setIdMessage(messageInfo.getIdMessage());
+        response.setAsunto(messageInfo.getAsunto());
+        response.setHtmlcontent(messageInfo.getHtmlcontent());
+
+        // Mapear sender
+        if (messageInfo.getSenderUser() != null) {
+            SenderItem senderItem = new SenderItem();
+            senderItem.setApenomPersonal(messageInfo.getSenderUser().getApenomPersonal());
+            senderItem.setIdEmpleado(messageInfo.getSenderUser().getIdEmpleado());
+            senderItem.setIdUsuario(messageInfo.getSenderUser().getIdUsuario());
+            senderItem.setNoUsuario(messageInfo.getSenderUser().getNoUsuario());
+            response.setSenderUser(senderItem);
+        }
+
+        // Mapear attachments (solo las rutas/URLs)
+        if (messageInfo.getAttachments() != null) {
+            var attachmentUrls = messageInfo.getAttachments().stream()
+                .map(attachment -> attachment.getFilePath())
+                .collect(Collectors.toList());
+            response.setAttachment(attachmentUrls);
+        }
+
+        return response;
     }
 
     /**

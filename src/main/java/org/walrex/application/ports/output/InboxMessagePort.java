@@ -4,6 +4,7 @@ import io.quarkus.panache.common.Page;
 import io.smallrye.mutiny.Uni;
 import org.walrex.domain.model.MessageInboxItem;
 import org.walrex.domain.model.PagedResult;
+import org.walrex.infrastructure.adapters.outbound.persistence.dto.MessageDetailsDTO;
 
 import java.util.Optional;
 
@@ -24,4 +25,13 @@ public interface InboxMessagePort {
      * @return Uni reactivo con el resultado paginado que contiene los mensajes y metadatos
      */
     Uni<PagedResult<MessageInboxItem>> findMessagesByUser(Integer userId, Optional<Page> page);
+
+    /**
+     * Obtiene el detalle completo de un mensaje por su ID
+     *
+     * @param idMessage ID del mensaje a consultar
+     * @param idDestinatario ID del destinatorio del mensaje
+     * @return Uni reactivo con el detalle completo del mensaje
+     */
+    Uni<MessageDetailsDTO> getDetailMessageById(Integer idMessage, Integer idDestinatario);
 }
