@@ -21,14 +21,14 @@ public class UsuarioEntity {
     @Column(name = "id_empleado", insertable = false, updatable = false)
     private Long idEmpleado;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_empleado", referencedColumnName = "id_personal")
     private EmpleadoEntity empleado;
 
     @Column(name = "no_usuario")
     private String nameUser;
 
-    @Column(name = "no_password")
+    @Column(name = "no_passwd")
     private String noPassword;
 
     @Column(name = "il_estado")
