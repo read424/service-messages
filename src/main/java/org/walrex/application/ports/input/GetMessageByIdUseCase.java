@@ -15,7 +15,8 @@ public interface GetMessageByIdUseCase {
      * Obtiene el detalle completo de un mensaje por su ID de forma reactiva
      *
      * @param idMessage ID del mensaje a consultar
+     * @param idDestinatario ID del destinatorio del mensaje
      * @return Uni reactivo con la información completa del mensaje
      */
-    Uni<MessageInfo> getMessageById(Integer idMessage);
+    Uni<MessageInfo> getMessageById(Integer idMessage, Integer idDestinatario);
 }

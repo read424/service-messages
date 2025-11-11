@@ -30,7 +30,8 @@ public interface InboxMessagePort {
      * Obtiene el detalle completo de un mensaje por su ID
      *
      * @param idMessage ID del mensaje a consultar
+     * @param idDestinatario ID del destinatorio del mensaje
      * @return Uni reactivo con el detalle completo del mensaje
      */
-    Uni<MessageDetailsDTO> getDetailMessageById(Integer idMessage);
+    Uni<MessageDetailsDTO> getDetailMessageById(Integer idMessage, Integer idDestinatario);
 }
