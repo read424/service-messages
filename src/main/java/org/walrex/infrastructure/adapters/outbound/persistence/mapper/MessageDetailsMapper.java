@@ -66,7 +66,6 @@ public interface MessageDetailsMapper {
     /**
      * Mapea AttachmentEntity a AttachmentInfoDTO
      */
-    @Mapping(source = "idAttachment", target = "id")
     @Mapping(source = "uploadedAt", target = "uploadedAt", qualifiedByName = "offsetDateTimeToLocalDate")
     AttachmentInfoDTO toAttachmentInfoDTO(AttachmentEntity attachmentEntity);
 
