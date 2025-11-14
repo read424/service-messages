@@ -29,9 +29,9 @@ import java.util.stream.Collectors;
 
 /**
  * REST Resource para el inbox de mensajes
- * Endpoint: /api/message-inbox
+ * Endpoint: /message-inbox
  */
-@Path("/api/message-inbox")
+@Path("/message-inbox")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Message Inbox", description = "Operaciones para gestionar el inbox de mensajes")

@@ -6,20 +6,12 @@ quarkus:
   # Deshabilitar Dev Services para usar servicios locales
   devservices:
     enabled: false
-  # Consul config comentado temporalmente - verificar documentación para configuración correcta
-  # consul-config:
-  #   enabled: true
-  #   agent:
-  #     host-port: localhost:8500
-  #     register: true
-  #     service-name: ${quarkus.application.name}
-  #     service-port: ${quarkus.http.port}
-  #     service-host: localhost
-  #     health-check-interval: 10s
-  #     health-check-path: /q/health
   smallrye-health:
     ui:
       enabled: true
+  kafka-streams:
+    health:
+      enabled: false
   datasource:
     db-kind: postgresql
     username: postgres
@@ -86,15 +78,55 @@ kafka:
     servers: 127.0.0.1:9092
 mp:
   messaging:
+    # ===== CONFIGURACIÓN DE CONSUMIDORES (INCOMING) =====
     incoming:
-      orders:
+      # Consumer para mensajes de inbox
+      inbox-messages:
         connector: smallrye-kafka
-        topic: order-events
+        topic: inbox.messages
+        # Deserializador Avro de Confluent
         value:
           deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+        key:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        # Schema Registry
         schema:
-            registry:
-              url: http://127.0.0.1:8081
+          registry:
+            url: http://127.0.0.1:8081
+        specific:
+          avro:
+            reader: true
+        # Configuración de consumo
+        auto:
+          offset:
+            reset: earliest
+        group:
+          id: message-service-consumer-group
+        # Eficiencia: procesar en batch
+        batch: true
+        max:
+          poll:
+            records: 500
+        # Commit manual para control fino
+        enable:
+          auto:
+            commit: false
+        # Configuración de concurrencia
+        # Si necesitas más throughput, aumenta esto junto con las particiones del topic
+        # Por defecto Quarkus usa 1 thread por consumer
+        # Para más paralelismo, puedes usar múltiples consumers con el mismo group.id
+
+      # Consumer para eventos de notificación
+      notification-events:
+        connector: smallrye-kafka
+        topic: notification.events
+        value:
+          deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+        key:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        schema:
+          registry:
+            url: http://127.0.0.1:8081
         specific:
           avro:
             reader: true
@@ -102,13 +134,22 @@ mp:
           offset:
             reset: earliest
         group:
-          id: order-service-group
+          id: notification-consumer-group
+        batch: false
+        enable:
+          auto:
+            commit: true
+
+    # ===== CONFIGURACIÓN DE PRODUCTORES (OUTGOING) =====
     outgoing:
-      notifications:
+      # Producer para mensajes de inbox
+      inbox-messages-out:
         connector: smallrye-kafka
-        topic: notification-events
+        topic: inbox.messages
         value:
           serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+        key:
+          serializer: org.apache.kafka.common.serialization.StringSerializer
         schema:
           registry:
             url: http://127.0.0.1:8081
@@ -118,3 +159,58 @@ mp:
         use:
           latest:
             version: true
+        # Eficiencia: batching de mensajes
+        batch:
+          size: 16384
+        linger:
+          ms: 10
+        # Compresión para reducir red
+        compression:
+          type: snappy
+        # Idempotencia para exactly-once (requiere acks: all)
+        acks: all
+        enable:
+          idempotence: true
+
+      # Producer para notificaciones
+      notification-events-out:
+        connector: smallrye-kafka
+        topic: notification.events
+        value:
+          serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+        key:
+          serializer: org.apache.kafka.common.serialization.StringSerializer
+        schema:
+          registry:
+            url: http://127.0.0.1:8081
+        auto:
+          register:
+            schemas: true
+        use:
+          latest:
+            version: true
+        batch:
+          size: 16384
+        linger:
+          ms: 10
+        compression:
+          type: snappy
+        # Idempotencia para exactly-once (requiere acks: all)
+        acks: all
+        enable:
+          idempotence: true
+
+# Configuración de Consul para Service Registration
+consul:
+  host: localhost
+  port: 8500
+  service:
+    host: localhost
+  health:
+    check:
+      # IP del host accesible desde contenedores Docker
+      # - Por defecto: host.docker.internal (con auto-detección en Linux)
+      # - Si falla, especificar manualmente la IP del gateway de Docker
+      # - Obtener gateway con: docker inspect consul-server | grep Gateway
+      # - Ej: 172.18.0.1, 172.17.0.1, etc.
+      host: host.docker.internal
