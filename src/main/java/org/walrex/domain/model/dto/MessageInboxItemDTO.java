@@ -1,6 +1,7 @@
 package org.walrex.domain.model.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.walrex.domain.model.MessageInboxItem;
 
 import java.time.OffsetDateTime;
 
@@ -49,7 +50,7 @@ public class MessageInboxItemDTO {
     }
 
     // Método estático para crear desde domain model
-    public static MessageInboxItemDTO fromDomain(org.walrex.domain.model.MessageInboxItem domain) {
+    public static MessageInboxItemDTO fromDomain(MessageInboxItem domain) {
         if (domain == null) {
             return null;
         }
