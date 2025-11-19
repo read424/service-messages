@@ -192,11 +192,14 @@ public class MessageRecipientRepository implements PanacheRepository<MessageReci
     /**
      * Buscar destinatarios con el mensaje y attachments cargados (EAGER)
      * Los attachments se cargan para permitir el conteo sin lazy loading
+     * También carga el sender con su empleado para obtener el nombre completo
      */
     public Uni<List<MessageRecipientEntity>> findByRecipientIdWithMessage(Integer recipientId) {
         return find("SELECT DISTINCT mr FROM MessageRecipientEntity mr " +
                     "JOIN FETCH mr.message m " +
                     "LEFT JOIN FETCH m.attachments " +
+                    "LEFT JOIN FETCH m.sender s " +
+                    "LEFT JOIN FETCH s.empleado " +
                     "WHERE mr.recipientId = ?1 " +
                     "ORDER BY m.createAt DESC", recipientId)
                 .list();
@@ -205,11 +208,14 @@ public class MessageRecipientRepository implements PanacheRepository<MessageReci
     /**
      * Buscar destinatarios con el mensaje y attachments cargados (EAGER) con paginación
      * Los attachments se cargan para permitir el conteo sin lazy loading
+     * También carga el sender con su empleado para obtener el nombre completo
      */
     public Uni<List<MessageRecipientEntity>> findByRecipientIdWithMessagePaged(Integer recipientId, int page, int size) {
         return find("SELECT DISTINCT mr FROM MessageRecipientEntity mr " +
                     "JOIN FETCH mr.message m " +
                     "LEFT JOIN FETCH m.attachments " +
+                    "LEFT JOIN FETCH m.sender s " +
+                    "LEFT JOIN FETCH s.empleado " +
                     "WHERE mr.recipientId = ?1 " +
                     "ORDER BY m.createAt DESC", recipientId)
                 .page(page, size)
