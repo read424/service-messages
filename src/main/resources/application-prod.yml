@@ -9,11 +9,11 @@ quarkus:
   consul-config:
     enabled: true
     agent:
-      host-port: ${CONSUL_HOST:localhost}:${CONSUL_PORT:8500}
+      host-port: localhost:8500
       register: true
       service-name: ${quarkus.application.name}
       service-port: ${quarkus.http.port}
-      service-host: ${SERVICE_HOST:localhost}  # IP pública o privada del EC2
+      service-host: localhost  # IP pública o privada del EC2
       health-check-interval: 10s
       health-check-path: /q/health
       health-check-timeout: 5s
@@ -27,16 +27,16 @@ quarkus:
   # PostgreSQL
   datasource:
     db-kind: postgresql
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    username: postgres
+    password: postgres
     # URL JDBC para Flyway
     jdbc:
-      url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:erp_tlm_2021}
+      url: jdbc:postgresql://localhost:5432/erp_tlm_2021
       max-size: 20
       min-size: 5
     # URL Reactiva para runtime
     reactive:
-      url: postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:erp_tlm_2021}
+      url: postgresql://localhost:5432/erp_tlm_2021
       max-size: 20
 
   hibernate-orm:
@@ -58,13 +58,15 @@ quarkus:
 
   # Redis Cache Configuration
   redis:
-    hosts: ${REDIS_HOST:redis://localhost:6379}
+    hosts: redis://localhost:6379
     timeout: 10s
     max-pool-size: 20
     max-pool-waiting: 24
+
   cache:
+    enabled: false
     redis:
-      expire-after-write: 30m
+      expire-after-write: 2m
       prefix: "msg-svc"
 
   # Logging
@@ -76,36 +78,37 @@ quarkus:
     console:
       format: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{3.}] (%t) %s%e%n"
 
-# Kafka Configuration
-kafka:
-  bootstrap:
-    servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  # Kafka Configuration
+  kafka:
+    bootstrap:
+      servers: localhost:9092
 
-# MicroProfile Messaging (Kafka)
-mp:
-  messaging:
-    connector:
-      smallrye-kafka:
-        apicurio:
-          registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
-    incoming:
-      orders:
-        connector: smallrye-kafka
-        topic: order-events
-        group.id: message-service-group
-        auto.offset.reset: earliest
-        enable.auto.commit: true
-        value:
-          deserializer: io.apicurio.registry.serde.avro.AvroKafkaDeserealizer
-        apicurio:
-          registry:
-            avro-datum-provider: io.apicurio.registry.serde.avro.ReflectAvroDatumProvider
-    outgoing:
-      notifications:
-        connector: smallrye-kafka
-        topic: notification-events
-        value:
-          serializer: io.apicurio.registry.serde.avro.AvroKafkaSerializer
-        apicurio:
-          registry:
-            auto-register: true
+  # MicroProfile Messaging (Kafka)
+  mp:
+    messaging:
+      connector:
+        smallrye-kafka:
+          apicurio:
+            registry:
+              url: http://localhost:8081/apis/registry/v2
+      incoming:
+        orders:
+          connector: smallrye-kafka
+          topic: order-events
+          group.id: message-service-group
+          auto.offset.reset: earliest
+          enable.auto.commit: true
+          value:
+            deserializer: io.apicurio.registry.serde.avro.AvroKafkaDeserealizer
+          apicurio:
+            registry:
+              avro-datum-provider: io.apicurio.registry.serde.avro.ReflectAvroDatumProvider
+      outgoing:
+        notifications:
+          connector: smallrye-kafka
+          topic: notification-events
+          value:
+            serializer: io.apicurio.registry.serde.avro.AvroKafkaSerializer
+          apicurio:
+            registry:
+              auto-register: true
