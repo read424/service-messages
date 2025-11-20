@@ -1,13 +1,50 @@
-*.log
-*.md
-.git/
+# Build artifacts
+target/
+!target/quarkus-app/
+
+# IDE
 .idea/
-.vscode/
 *.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Documentation
+*.md
+LICENSE
+docs/
+
+# Logs
+*.log
+logs/
+
+# Tests
+src/test/
+
+# OS
 .DS_Store
-node_modules/
-.mvn/
+Thumbs.db
+
+# Local config
+.env
+*.local
 env.json
 template.yaml
 samconfig.toml
-README-SAM.md
+
+# Maven wrapper (optional, only if building inside container)
+.mvn/
+mvnw*
+
+# Node (if any)
+node_modules/
