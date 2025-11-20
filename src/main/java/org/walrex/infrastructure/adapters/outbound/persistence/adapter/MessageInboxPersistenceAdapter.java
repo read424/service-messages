@@ -20,7 +20,6 @@ import org.walrex.infrastructure.adapters.outbound.persistence.entity.UsuarioEnt
 import org.walrex.infrastructure.adapters.outbound.persistence.repository.AttachmentRepository;
 import org.walrex.infrastructure.adapters.outbound.persistence.repository.MessageRecipientRepository;
 import org.walrex.infrastructure.adapters.outbound.persistence.repository.MessageRepository;
-import org.walrex.infrastructure.adapters.outbound.persistence.mapper.MessageDetailsMapper;
 import org.walrex.infrastructure.adapters.outbound.persistence.exception.MessageNotFoundException;
 
 import java.time.Duration;
@@ -138,23 +137,63 @@ public class MessageInboxPersistenceAdapter implements InboxMessagePort {
             .isRead(recipientEntity.getIsRead())
             .message(message.getAsunto()) // Usamos el asunto como mensaje principal
             .numAttachments(message.getAttachments() != null ? message.getAttachments().size() : 0)
-            .senderName(getSenderName(message.getSenderId())) // TODO: Obtener nombre real del sender
+            .senderName(getSenderName(message))
             .createdAt(message.getCreateAt())
             .timeReceived(formatTimeReceived(message.getCreateAt()))
             .build();
     }
 
     /**
-     * Obtiene el nombre del remitente
-     * TODO: Implementar lógica para obtener el nombre real desde un servicio de usuarios
+     * Obtiene el nombre completo del remitente desde la entidad del mensaje
+     * Concatena primerApellido, segundoApellido y nombres del empleado asociado
      *
-     * @param senderId ID del remitente
-     * @return Nombre del remitente
+     * @param message Entidad del mensaje con el sender cargado
+     * @return Nombre completo del remitente o fallback si no está disponible
      */
-    private String getSenderName(Integer senderId) {
-        // Por ahora retornamos un placeholder
-        // En producción, esto debería consultar un servicio de usuarios o una tabla de usuarios
-        return "User #" + senderId;
+    private String getSenderName(MessageEntity message) {
+        if (message.getSender() == null) {
+            return "User #" + message.getSenderId();
+        }
+
+        if (message.getSender().getEmpleado() == null) {
+            // Fallback: usar nombre de usuario
+            if (message.getSender().getNameUser() != null) {
+                return message.getSender().getNameUser();
+            }
+            return "User #" + message.getSenderId();
+        }
+
+        EmpleadoEntity empleado = message.getSender().getEmpleado();
+        StringBuilder nombreCompleto = new StringBuilder();
+
+        if (empleado.getPrimerApellido() != null && !empleado.getPrimerApellido().isBlank()) {
+            nombreCompleto.append(empleado.getPrimerApellido().trim());
+        }
+
+        if (empleado.getSegundoApellido() != null && !empleado.getSegundoApellido().isBlank()) {
+            if (nombreCompleto.length() > 0) {
+                nombreCompleto.append(" ");
+            }
+            nombreCompleto.append(empleado.getSegundoApellido().trim());
+        }
+
+        if (empleado.getNombres() != null && !empleado.getNombres().isBlank()) {
+            if (nombreCompleto.length() > 0) {
+                nombreCompleto.append(" ");
+            }
+            nombreCompleto.append(empleado.getNombres().trim());
+        }
+
+        if (nombreCompleto.length() > 0) {
+            return nombreCompleto.toString();
+        }
+
+        // Fallback: usar nombre de usuario o ID
+        if (message.getSender().getNameUser() != null) {
+            return message.getSender().getNameUser();
+        }
+
+        return "User #" + message.getSenderId();
     }
 
     /**
