@@ -56,9 +56,9 @@ FROM registry.access.redhat.com/ubi9/openjdk-21-runtime:1.21
 LABEL org.opencontainers.image.title="service-messages" \
       org.opencontainers.image.description="Microservicio de mensajes - Quarkus" \
       org.opencontainers.image.version="1.0.0-SNAPSHOT" \
-      org.opencontainers.image.vendor="Walrex" \
+      org.opencontainers.image.vendor="WALREX" \
       org.opencontainers.image.source="https://github.com/walrex/service-messages" \
-      maintainer="devops@walrex.com"
+      maintainer="read424@gmail.com"
 
 # Configuración de entorno base
 ENV LANGUAGE='en_US:en' \
