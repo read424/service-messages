@@ -34,7 +34,6 @@ RUN mkdir -p /root/.m2 && \
 
 # Cache de dependencias Maven (solo se invalida si cambia pom.xml)
 COPY pom.xml .
-COPY .mvn .mvn
 
 # Descargar dependencias offline para mejor cache
 RUN --mount=type=cache,target=/root/.m2/repository \
