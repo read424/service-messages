@@ -48,6 +48,11 @@
             <groupId>io.smallrye.stork</groupId>
             <artifactId>stork-service-discovery-consul</artifactId>
         </dependency>
+        <!--dependency>
+            <groupId>io.quarkiverse.config</groupId>
+            <artifactId>quarkus-config-consul</artifactId>
+            <version>2.4.0</version>
+        </dependency-->
         <dependency>
             <groupId>io.smallrye.stork</groupId>
             <artifactId>stork-service-registration-consul</artifactId>
@@ -79,15 +84,6 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-hibernate-reactive-panache</artifactId>
         </dependency>
-        <!-- Flyway para migraciones (requiere JDBC) -->
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-flyway</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-jdbc-postgresql</artifactId>
-        </dependency>
         <dependency>
             <groupId>io.quarkiverse.groovy</groupId>
             <artifactId>quarkus-groovy-junit5</artifactId>
@@ -103,11 +99,11 @@
             <artifactId>quarkus-kafka-streams</artifactId>
         </dependency>
         <!-- Esquemas Avro compartidos -->
-        <dependency>
+        <!--dependency>
             <groupId>com.walrex</groupId>
             <artifactId>avro-schemas</artifactId>
             <version>${avro-schemas-microservices.version}</version>
-        </dependency>
+        </dependency-->
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-arc</artifactId>
@@ -185,10 +181,10 @@
             <id>confluent</id>
             <url>https://packages.confluent.io/maven/</url>
         </repository>
-        <repository>
+        <!--repository>
             <id>github</id>
             <url>https://maven.pkg.github.com/read424/avro-schemas</url>
-        </repository>
+        </repository-->
     </repositories>
 
     <build>
