@@ -2,6 +2,7 @@ package org.walrex.infrastructure.adapters.outbound.persistence.entity;
 
 import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.OffsetDateTime;
 
@@ -9,6 +10,12 @@ import java.time.OffsetDateTime;
  * Entidad JPA para la tabla inbox_messages.attachments
  * Representa un archivo adjunto asociado a un mensaje
  */
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Data
+@EqualsAndHashCode(callSuper = false)
+@ToString
 @Entity
 @Table(name = "attachments", schema = "inbox_messages")
 public class AttachmentEntity extends PanacheEntityBase {
@@ -33,19 +40,6 @@ public class AttachmentEntity extends PanacheEntityBase {
     @Column(name = "uploaded_at", nullable = false)
     private OffsetDateTime uploadedAt;
 
-    // Constructor por defecto
-    public AttachmentEntity() {
-        this.uploadedAt = OffsetDateTime.now();
-    }
-
-    // Constructor con parámetros principales
-    public AttachmentEntity(MessageEntity message, String filePath, String fileName, String fileType) {
-        this();
-        this.message = message;
-        this.filePath = filePath;
-        this.fileName = fileName;
-        this.fileType = fileType;
-    }
 
     // Métodos de ayuda
     public String getFileExtension() {
@@ -67,64 +61,5 @@ public class AttachmentEntity extends PanacheEntityBase {
     public boolean isDocument() {
         String ext = getFileExtension().toLowerCase();
         return ext.matches("doc|docx|xls|xlsx|ppt|pptx|txt|csv");
-    }
-
-    // Getters y Setters
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public MessageEntity getMessage() {
-        return message;
-    }
-
-    public void setMessage(MessageEntity message) {
-        this.message = message;
-    }
-
-    public String getFilePath() {
-        return filePath;
-    }
-
-    public void setFilePath(String filePath) {
-        this.filePath = filePath;
-    }
-
-    public String getFileName() {
-        return fileName;
-    }
-
-    public void setFileName(String fileName) {
-        this.fileName = fileName;
-    }
-
-    public String getFileType() {
-        return fileType;
-    }
-
-    public void setFileType(String fileType) {
-        this.fileType = fileType;
-    }
-
-    public OffsetDateTime getUploadedAt() {
-        return uploadedAt;
-    }
-
-    public void setUploadedAt(OffsetDateTime uploadedAt) {
-        this.uploadedAt = uploadedAt;
-    }
-
-    @Override
-    public String toString() {
-        return "AttachmentEntity{" +
-                "id=" + id +
-                ", fileName='" + fileName + '\'' +
-                ", fileType='" + fileType + '\'' +
-                ", uploadedAt=" + uploadedAt +
-                '}';
     }
 }

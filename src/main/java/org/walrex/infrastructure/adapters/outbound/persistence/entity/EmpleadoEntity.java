@@ -1,5 +1,6 @@
 package org.walrex.infrastructure.adapters.outbound.persistence.entity;
 
+import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -12,10 +13,11 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @Builder
 @Data
+@EqualsAndHashCode(callSuper = false)
 @ToString
 @Entity
 @Table(name = "tbpersonal", schema = "rrhh")
-public class EmpleadoEntity {
+public class EmpleadoEntity extends PanacheEntityBase {
     @Id
     @Column(name = "id_personal", nullable = false)
     private Long id;
