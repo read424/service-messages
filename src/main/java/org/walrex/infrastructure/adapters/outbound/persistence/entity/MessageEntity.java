@@ -1,5 +1,6 @@
 package org.walrex.infrastructure.adapters.outbound.persistence.entity;
 
+import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 
 import java.time.OffsetDateTime;
@@ -12,7 +13,7 @@ import java.util.List;
  */
 @Entity
 @Table(name = "messages", schema = "inbox_messages")
-public class MessageEntity {
+public class MessageEntity extends PanacheEntityBase {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -1,5 +1,6 @@
 package org.walrex.infrastructure.adapters.outbound.persistence.entity;
 
+import io.quarkus.hibernate.reactive.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -14,7 +15,7 @@ import java.time.LocalDateTime;
     @Index(name = "idx_message_recipients_recipient_id", columnList = "recipient_id"),
     @Index(name = "idx_message_recipients_is_read", columnList = "is_read")
 })
-public class MessageRecipientEntity {
+public class MessageRecipientEntity extends PanacheEntityBase {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

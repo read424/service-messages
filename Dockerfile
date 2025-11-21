@@ -65,30 +65,27 @@ ENV LANGUAGE='en_US:en' \
     LC_ALL='en_US.UTF-8'
 
 # =============================================================================
-# Variables de entorno de la aplicación
+# Variables de entorno de la aplicación (formato Quarkus)
 # =============================================================================
 
 # Quarkus Profile (usar application-prod.yml por defecto)
 ENV QUARKUS_PROFILE=prod
 
-# PostgreSQL
-ENV DB_HOST=localhost \
-    DB_PORT=5432 \
-    DB_NAME=erp_tlm_2021 \
-    DB_USERNAME=postgres \
-    DB_PASSWORD=postgres
+# PostgreSQL Reactive
+ENV QUARKUS_DATASOURCE_REACTIVE_URL=postgresql://localhost:5432/erp_tlm_2021 \
+    QUARKUS_DATASOURCE_USERNAME=postgres \
+    QUARKUS_DATASOURCE_PASSWORD=postgres
 
 # Redis
-ENV REDIS_HOST=redis://localhost:6379
+ENV QUARKUS_REDIS_HOSTS=redis://localhost:6379
 
 # Consul Service Discovery
 ENV CONSUL_HOST=localhost \
-    CONSUL_PORT=8500 \
-    SERVICE_HOST=localhost
+    CONSUL_PORT=8500
 
 # Kafka
 ENV KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
-    SCHEMA_REGISTRY_URL=http://localhost:8081/apis/registry/v2
+    MP_MESSAGING_CONNECTOR_SMALLRYE_KAFKA_SCHEMA_REGISTRY_URL=http://localhost:8081
 
 # Copiar artefactos del build (4 capas separadas para mejor cache)
 COPY --from=build --chown=185:root /app/target/quarkus-app/lib/ /deployments/lib/
