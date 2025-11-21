@@ -5,20 +5,13 @@ quarkus:
     port: 8089
     host: 0.0.0.0  # Escuchar en todas las interfaces
 
-  # Consul Service Discovery
-  consul-config:
-    enabled: true
-    agent:
-      host-port: localhost:8500
-      register: true
-      service-name: ${quarkus.application.name}
-      service-port: ${quarkus.http.port}
-      service-host: localhost  # IP pública o privada del EC2
-      health-check-interval: 10s
-      health-check-path: /q/health
-      health-check-timeout: 5s
-      # Tags para identificar el servicio
-      service-tags: microservice,messages,quarkus,reactive
+  apicurio-registry:
+    devservices:
+      enabled: false
+
+  # Deshabilitar Dev Services - usar servicios externos
+  devservices:
+    enabled: false
 
   smallrye-health:
     ui:
@@ -28,28 +21,9 @@ quarkus:
   datasource:
     db-kind: postgresql
     username: postgres
-    password: postgres
-    # URL JDBC para Flyway
-    jdbc:
-      url: jdbc:postgresql://localhost:5432/erp_tlm_2021
-      max-size: 20
-      min-size: 5
-    # URL Reactiva para runtime
+    password: 12345
     reactive:
-      url: postgresql://localhost:5432/erp_tlm_2021
-      max-size: 20
-
-  hibernate-orm:
-    database:
-      generation: none  # Flyway maneja las migraciones
-
-  # Flyway - Ejecutar manualmente en deploy
-  flyway:
-    migrate-at-start: false
-    baseline-on-migrate: true
-    schemas: inbox_messages
-    locations: db/migration
-    table: flyway_schema_history
+      url: postgresql://192.168.1.90:5432/erp_tlm_2021
 
   # Swagger/OpenAPI - Activado en producción (puedes desactivar si lo prefieres)
   swagger-ui:
@@ -58,11 +32,12 @@ quarkus:
 
   # Redis Cache Configuration
   redis:
-    hosts: redis://localhost:6379
+    hosts: redis://192.168.1.90:6379
     timeout: 10s
     max-pool-size: 20
     max-pool-waiting: 24
-
+    devservices:
+      enabled: false
   cache:
     enabled: false
     redis:
@@ -73,42 +48,102 @@ quarkus:
   log:
     level: INFO
     category:
-      "org.walrex": DEBUG
-      "io.quarkus": INFO
+      org.walrex:
+        level: DEBUG
+      io.quarkus:
+        level: INFO
     console:
       format: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{3.}] (%t) %s%e%n"
 
-  # Kafka Configuration
-  kafka:
-    bootstrap:
-      servers: localhost:9092
+# Consul
+consul:
+  host: 192.168.1.90
+  port: 8500
+  service:
+    host: ${quarkus.application.name}
+  health:
+    check:
+      host: host.docker.internal
 
-  # MicroProfile Messaging (Kafka)
-  mp:
-    messaging:
-      connector:
-        smallrye-kafka:
-          apicurio:
-            registry:
-              url: http://localhost:8081/apis/registry/v2
-      incoming:
-        orders:
-          connector: smallrye-kafka
-          topic: order-events
-          group.id: message-service-group
-          auto.offset.reset: earliest
-          enable.auto.commit: true
-          value:
-            deserializer: io.apicurio.registry.serde.avro.AvroKafkaDeserealizer
-          apicurio:
-            registry:
-              avro-datum-provider: io.apicurio.registry.serde.avro.ReflectAvroDatumProvider
-      outgoing:
-        notifications:
-          connector: smallrye-kafka
-          topic: notification-events
-          value:
-            serializer: io.apicurio.registry.serde.avro.AvroKafkaSerializer
-          apicurio:
-            registry:
-              auto-register: true
+# Kafka Configuration
+kafka:
+  bootstrap:
+    servers: 192.168.1.90:9092
+
+# MicroProfile Messaging (Kafka) - Confluent Schema Registry
+mp:
+  messaging:
+    connector:
+      smallrye-kafka:
+        "schema.registry.url": http://192.168.1.90:8081
+
+    incoming:
+      notification-events:
+        connector: smallrye-kafka
+        topic: notification-events
+        value:
+          deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+        schema:
+          registry:
+            url: http://192.168.1.90:8081
+        specific:
+          avro:
+            reader: true
+        group:
+          id: message-service-group
+        auto:
+          offset:
+            reset: earliest
+        enable:
+          auto:
+            commit: true
+
+      # Canal para mensajes de inbox (procesamiento batch)
+      inbox-messages:
+        connector: smallrye-kafka
+        topic: inbox-messages
+        batch: true
+        max:
+          poll:
+            records: 500
+        value:
+          deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+        schema:
+          registry:
+            url: http://192.168.1.90:8081
+        specific:
+          avro:
+            reader: true
+        group:
+          id: message-service-group
+        auto:
+          offset:
+            reset: earliest
+        enable:
+          auto:
+            commit: false
+
+    outgoing:
+      inbox-messages-out:
+        connector: smallrye-kafka
+        topic: inbox-messages
+        value:
+          serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+        schema:
+          registry:
+            url: http://192.168.1.90:8081
+        auto:
+          register:
+            schemas: true
+      # Dead Letter Queue para notificaciones fallidas
+      notification-events-dlq:
+        connector: smallrye-kafka
+        topic: notification-events-dlq
+        value:
+          serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+        schema:
+          registry:
+            url: http://192.168.1.90:8081
+        auto:
+          register:
+            schemas: true
