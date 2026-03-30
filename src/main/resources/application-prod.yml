@@ -59,6 +59,7 @@ quarkus:
 consul:
   host: 192.168.1.90
   port: 8500
+  access-token: ${CONSUL_TOKEN}
   service:
     host: ${quarkus.application.name}
   health:
